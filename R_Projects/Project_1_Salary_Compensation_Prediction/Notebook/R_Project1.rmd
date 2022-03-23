@@ -1,0 +1,687 @@
+---
+title: "Data Cleaning, Analysis, modelling and predictions"
+author: "Shephali Jain"
+date: "12/18/2021"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+knitr::opts_knit$set(root.dir = normalizePath("C:/Users/piyus/OneDrive/Desktop/Fall21/MArgoBergman_AppliedRegression540/Final Project/Final Project_Ours/Submission"))
+
+```
+
+We will perform the data cleaning step on our final project dataset. 
+
+
+```{r include = FALSE}
+#install.packages("mi")
+```
+
+
+```{r library}
+
+library(readxl)
+library(tidyverse)
+library(mi)
+library(plyr)
+library(dplyr)
+library(car)
+library(zoo)
+options(scipen = 999)
+```
+
+
+Based on the initial analysis some of the columns are dropped and new columns are created for city state and country in excel itself. Below we will read data from the new trimmed excel data.
+
+
+```{r Data}
+
+SalaryData <- read_excel("Salary_Data.xlsx")
+summary(SalaryData)
+#view(SalaryData)
+sapply(SalaryData, function(x) sum(is.na(x)))
+
+```
+
+From above it's clear that the NA in the dataset are not recognized as NA's instead they are part of the class character. 
+
+```{r NAs}
+SalaryData2 <- data.frame(SalaryData)
+make.true.NA <- function(x) if(is.character(x)||is.factor(x)){
+                                  is.na(x) <- x=="NA"; x} else {
+                                  x}
+SalaryData2[] <- lapply(SalaryData2, make.true.NA)
+
+summary(SalaryData2)
+
+sapply(SalaryData2, function(x) sum(is.na(x)))
+
+```
+Delete missing data
+
+```{r deleteMissing}
+SalaryData2 <- na.omit(SalaryData2)
+
+summary(SalaryData2)
+
+sapply(SalaryData2, function(x) sum(is.na(x)))
+
+```
+
+Condensing Time Stamp
+
+```{r USA Focus}
+dim(SalaryData)
+dim(SalaryData2)
+SalaryData2$Quarter <- paste(
+  format(SalaryData2$timestamp, "%Y"),
+  sprintf("%02i", (as.POSIXlt(SalaryData2$timestamp)$mon) %/% 3L + 1L), 
+  sep = "/")
+count(SalaryData2$Quarter)
+
+SalaryData3 <- subset(SalaryData2, SalaryData2$Quarter != "2020/01" )
+count(SalaryData3$Quarter)
+
+
+```
+
+Filtering Country == USA
+
+```{r USA Focus2}
+SalaryData4 <- subset(SalaryData3, SalaryData3$country == "USA")
+dim(SalaryData4) #16956 rows x 17 columns
+```
+
+
+
+
+Condensing Company - Considering companies with observations greater than 25
+
+```{r USA Focus3}
+count(SalaryData4$company) #total 1085 companies
+SalaryData5<-transform(SalaryData4,Company_Frequency=ave(seq(nrow(SalaryData4)),company,FUN=length))
+dim(SalaryData5) #16956  x  18
+SalaryData6<- subset(SalaryData5, SalaryData5$Company_Frequency >= 25)
+count(SalaryData6$company) # 96 companies
+
+
+# add an extra log salary data
+SalaryData6$logTotalSalary=log(SalaryData6$totalyearlycompensation)
+
+```
+
+
+
+Condensing Categorical Variables - Region
+
+```{r aggregating state to region}
+
+# Creating 9 regions - Based on geographic wealth
+NE.ref <- c("CT", "MA", "ME", "NH", "RI", "VT")
+MA.ref <- c("NJ", "NY", "PA")
+ENC.ref <- c("WI", "IL", "IN", "MI", "OH")
+WNC.ref <- c("IA", "MN", "MO","KS", "ND", "NE", "SD")
+SA.ref <- c("DE", "MD", "WV", "VA", "NC", "SC", "GA", "FL", "DC")
+ESC.ref <- c("KY", "TN", "AL", "MS")
+WSC.ref <- c("AR","LA", "OK", "TX")
+M.ref <- c("MT", "ID", "WY", "NV", "UT", "CO", "AZ", "NM")
+P.ref <- c("AK", "CA", "HI", "OR", "WA")
+
+NineRegion.list <- list(
+  NorthEast = NE.ref,
+  MidAtlantic = MA.ref,
+  EastNorthCentral = ENC.ref,
+  WestNorthCentral = WNC.ref,
+  SouthAtlantic = SA.ref,
+  EastSouthCentral = ESC.ref,
+  WestSouthCentral = WSC.ref,
+  Mountain = M.ref,
+  Pacific = P.ref
+)
+
+SalaryData6$region <- sapply(SalaryData6$state, function(x) names(NineRegion.list)[grep(x,NineRegion.list)])
+
+# grep search for matches to argument pattern within each element of a character vector
+
+SalaryData6$region <- factor(SalaryData6$region)
+SalaryRegionCount <- as.data.frame(table(SalaryData6$region))
+
+region <- aggregate(totalyearlycompensation ~ region, SalaryData6, mean)
+region[with(region, order(totalyearlycompensation)),] 
+#set in ascending order of totalyearcompensation with region
+
+show(SalaryRegionCount)
+   
+```
+Condensing Categorical Variables - Education
+
+```{r - aggregating categories1}
+#only one we can really aggregate is Education
+SalaryData6$Education <- factor(SalaryData6$Education)
+SalaryEdCount <- as.data.frame(table(SalaryData6$Education))
+
+Education <- aggregate(totalyearlycompensation ~ Education, SalaryData6, mean)
+Education[with(Education, order(totalyearlycompensation)),]
+
+show(SalaryEdCount)
+#There are more than enough observations for each education type that we don't need to condense. Just need to enforce the order by total yearly compensation
+# since education has an inherent order I would suggest to use that highschool-somecollege-bachelors-masters-phd#
+
+#Enforcing order
+SalaryData6$Education <- factor(SalaryData6$Education,
+                                levels = c("Highschool", "Some College","Bachelor's Degree", "Master's Degree", "PhD"))   
+
+
+```
+
+Condensing Categorical Variables - Title
+
+```{r aggregating title}
+SalaryData6$title <- factor(SalaryData6$title)
+SalarytitleCount <- as.data.frame(table(SalaryData6$title))
+
+title <- aggregate(totalyearlycompensation ~ title, SalaryData6, mean)
+title[with(title, order(totalyearlycompensation)),]
+
+show(SalarytitleCount)
+
+
+#I changed the order and put recruiter at number 1, because we need business analyst, whichever we put here first will act as baseline and will not show a coefficient.
+SalaryData6$title <- factor(SalaryData6$title,
+                                levels = c("Recruiter",
+                                           "Business Analyst",
+                                           "Mechanical Engineer",
+                                           "Management Consultant",
+                                           "Human Resources",
+                                           "Marketing",
+                                           "Data Scientist",
+                                           "Sales",
+                                           "Hardware Engineer",
+                                           "Software Engineer",
+                                           "Product Designer",
+                                           "Solution Architect",
+                                           "Technical Program Manager",
+                                           "Product Manager",
+                                           "Software Engineering Manager"))   
+
+
+```
+
+
+
+Condensing Categorical Variables - Gender
+
+```{r aggregating title}
+SalaryData6$gender <- factor(SalaryData6$gender)
+SalarygenderCount <- as.data.frame(table(SalaryData6$gender))
+
+gender <- aggregate(totalyearlycompensation ~ gender, SalaryData6, mean)
+gender[with(gender, order(totalyearlycompensation)),]
+
+show(SalarygenderCount)
+
+SalaryData6$gender <- factor(SalaryData6$gender,
+                                levels = c("Other",
+                                           "Female",
+                                           "Male"))   
+
+
+```
+
+
+lets look again at the dataset
+```{r summary updated dataset} 
+summary(SalaryData6)
+
+
+```
+
+
+Now we will do visualizations for the numeric variables.Univariate Visualizations.
+
+
+```{r histograms} 
+
+hist(SalaryData6$totalyearlycompensation, breaks = 50)
+hist(SalaryData6$logTotalSalary, breaks = 50)
+hist(SalaryData6$yearsofexperience, breaks = 20)
+hist(SalaryData6$yearsatcompany, breaks = 20)
+hist(SalaryData6$basesalary)
+hist(SalaryData6$stockgrantvalue)
+hist(SalaryData6$bonus)
+hist(as.numeric(format(SalaryData6$timestamp, '%m')))
+
+ggplot(SalaryData6, aes(factor(Quarter),
+        fill = factor(Quarter))) +
+    geom_bar()
+
+ggplot(SalaryData6, aes(factor(gender),
+        fill = factor(gender))) +
+    geom_bar()
+ggplot(SalaryData6, aes(factor(Education),
+        fill = factor(Education))) +
+    geom_bar()
+    geom_bar()
+ggplot(SalaryData6, aes(factor(region),
+        fill = factor(region))) +
+    geom_bar()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggplot(SalaryData6, aes(factor(title),
+        fill = factor(title))) +
+    geom_bar()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggplot(SalaryData6, aes(factor(Race),
+        fill = factor(Race))) +
+    geom_bar()
+
+
+#install.packages("moments")
+library(moments)
+sd(SalaryData6$totalyearlycompensation)
+skewness(SalaryData6$totalyearlycompensation)
+kurtosis(SalaryData6$totalyearlycompensation)
+
+sd(SalaryData6$yearsofexperience)
+skewness(SalaryData6$yearsofexperience)
+kurtosis(SalaryData6$yearsofexperience)
+
+sd(SalaryData6$yearsatcompany)
+skewness(SalaryData6$yearsatcompany)
+kurtosis(SalaryData6$yearsatcompany)
+
+sd(SalaryData6$basesalary)
+skewness(SalaryData6$basesalary)
+kurtosis(SalaryData6$basesalary)
+
+sd(SalaryData6$stockgrantvalue)
+skewness(SalaryData6$stockgrantvalue)
+kurtosis(SalaryData6$stockgrantvalue)
+
+sd(SalaryData6$bonus)
+skewness(SalaryData6$bonus)
+kurtosis(SalaryData6$bonus)
+
+
+summary(SalaryData6)
+
+```
+
+Summary Statistics
+
+```{r histograms} 
+#install.packages("moments")
+library(moments)
+sd(SalaryData6$totalyearlycompensation)
+skewness(SalaryData6$totalyearlycompensation)
+kurtosis(SalaryData6$totalyearlycompensation)
+
+sd(SalaryData6$yearsofexperience)
+skewness(SalaryData6$yearsofexperience)
+kurtosis(SalaryData6$yearsofexperience)
+
+sd(SalaryData6$yearsatcompany)
+skewness(SalaryData6$yearsatcompany)
+kurtosis(SalaryData6$yearsatcompany)
+
+sd(SalaryData6$basesalary)
+skewness(SalaryData6$basesalary)
+kurtosis(SalaryData6$basesalary)
+
+sd(SalaryData6$stockgrantvalue)
+skewness(SalaryData6$stockgrantvalue)
+kurtosis(SalaryData6$stockgrantvalue)
+
+sd(SalaryData6$bonus)
+skewness(SalaryData6$bonus)
+kurtosis(SalaryData6$bonus)
+
+sd(SalaryData6$logTotalSalary)
+skewness(SalaryData6$logTotalSalary)
+kurtosis(SalaryData6$logTotalSalary)
+
+summary(SalaryData6)
+
+```
+
+
+
+
+
+Bi variate Visualizations
+
+```{r graphs - vs total comp}
+#scatterplots + geomsmooth
+ggplot(data = SalaryData6, aes(x = yearsofexperience, y = totalyearlycompensation)) + geom_point(size=2, color = "lightblue3") + geom_smooth()
+
+
+ggplot(data = SalaryData6, aes(x = yearsatcompany, y = totalyearlycompensation)) + geom_point(size=2, color = "lightblue3") + geom_smooth() 
+
+q<-ggplot(data = SalaryData6, aes(x = region, y = totalyearlycompensation, colour= as.factor(region))) + geom_point(size=2) + geom_smooth() 
+q + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+r<-ggplot(data = SalaryData6, aes(x = company, y = totalyearlycompensation, color = as.factor(company))) + geom_point(size=2) + geom_smooth() 
+r + theme(axis.text.x = element_text(size = 6, face = 'bold', angle = 90, vjust = 0.5, hjust=1))
+
+
+p<-ggplot(data = SalaryData6, aes(x = title, y = totalyearlycompensation, color = as.factor(title))) + geom_point(size=2 ) + geom_smooth() 
+p + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+ggplot(data = SalaryData6, aes(x = gender, y = totalyearlycompensation, color = as.factor(gender))) + geom_point(size=2) + geom_smooth() 
+
+ggplot(data = SalaryData6, aes(x = Race, y = totalyearlycompensation, color = as.factor(Race))) + geom_point(size=2) + geom_smooth() 
+
+s<-ggplot(data = SalaryData6, aes(x = Education, y = totalyearlycompensation, color = as.factor(Education))) + geom_point(size=2) + geom_smooth() 
+s + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggplot(data = SalaryData3, aes(x = basesalary, y = totalyearlycompensation)) + geom_point(size=2, color = "lightblue3") + geom_smooth()
+
+ggplot(data = SalaryData3, aes(x = stockgrantvalue, y = totalyearlycompensation)) + geom_point(size=2, color = "lightblue3") + geom_smooth()
+
+
+#They all seem to have some sort of sort of linearity
+
+
+#log totalsalary
+library(ggthemes)
+ggplot(data = SalaryData6, aes(x = yearsofexperience, y = logTotalSalary)) + geom_point(size=2, alpha = 0.5) + geom_smooth() +   scale_color_economist() 
+ggplot(data = SalaryData6, aes(x = yearsatcompany, y = logTotalSalary)) + geom_point(size=2,  alpha = 0.5) + geom_smooth() +   scale_color_economist() 
+
+q<- ggplot(data = SalaryData6, aes(x = region, y = logTotalSalary, colour= as.factor(region))) +geom_point(size=2,  alpha = 0.5) + geom_smooth()
+ q+ scale_color_economist() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+r<-ggplot(data = SalaryData6, aes(x = company, y = logTotalSalary, color = as.factor(company))) +geom_point(size=2, alpha = 0.5) + geom_smooth()
+r+  scale_color_economist() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+p<-ggplot(data = SalaryData6, aes(x = title, y = logTotalSalary,color = as.factor(title)))+ geom_point(size=2, alpha = 0.5) + geom_smooth()
+p+  scale_color_economist() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+ggplot(data = SalaryData6, aes(x = gender, y = logTotalSalary, color = as.factor(gender))) + geom_point(size=2, alpha = 0.5) + scale_color_economist() 
+
+ggplot(data = SalaryData6, aes(x = Race, y = logTotalSalary, color = as.factor(Race))) +geom_point(size=2, alpha = 0.5) + geom_smooth()+  scale_color_economist() 
+
+s<-ggplot(data = SalaryData6, aes(x = Education, y = logTotalSalary, color = as.factor(Education)))+geom_point(size=2, alpha = 0.5) + geom_smooth()+  scale_color_economist() 
+s + scale_color_economist() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+ggplot(data = SalaryData6, aes(x = log(basesalary), y = logTotalSalary)) +geom_point(size=2, alpha = 0.5) + geom_smooth()+  scale_color_economist() 
+
+ggplot(data = SalaryData6, aes(x = log(stockgrantvalue), y = logTotalSalary))+ geom_point(size=2, alpha = 0.5) + geom_smooth()+  scale_color_economist() 
+
+
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+Check for Co-linearity
+
+```{r - aggregating categories}
+numericdata <- SalaryData6 %>% select(totalyearlycompensation , basesalary , stockgrantvalue , bonus, yearsofexperience,yearsatcompany )
+library(corrplot)
+library(RColorBrewer)
+M <-cor(numericdata)
+corrplot(M, type="upper", order="hclust",
+         col=brewer.pal(n=8, name="RdYlBu"))
+```
+
+
+
+Check for Co-linearity
+
+```{r - aggregating categories}
+library(Hmisc)
+library(xtable)
+corstars <-function(numericdata, method=c("pearson", "spearman"), removeTriangle=c("upper", "lower"),
+                     result=c("none", "html", "latex")){
+    #Compute correlation matrix
+    require(Hmisc)
+    numericdata <- as.matrix(numericdata)
+    correlation_matrix<-rcorr(numericdata, type=method[1])
+    R <- correlation_matrix$r # Matrix of correlation coefficients
+    p <- correlation_matrix$P # Matrix of p-value 
+    ## Define notions for significance levels; spacing is important.
+    mystars <- ifelse(p < .0001, "****", ifelse(p < .001, "*** ", ifelse(p < .01, "**  ", ifelse(p < .05, "*   ", "    "))))
+    ## punctuate the correlation matrix to two decimal
+    R <- format(round(cbind(rep(-1.11, ncol(numericdata)), R), 2))[,-1]
+    ## build a new matrix that includes the correlations with their appropriate stars
+    Rnew <- matrix(paste(R, mystars, sep=""), ncol=ncol(numericdata))
+    diag(Rnew) <- paste(diag(R), " ", sep="")
+    rownames(Rnew) <- colnames(numericdata)
+    colnames(Rnew) <- paste(colnames(numericdata), "", sep="")
+    ## remove upper triangle of correlation matrix
+    if(removeTriangle[1]=="upper"){
+      Rnew <- as.matrix(Rnew)
+      Rnew[upper.tri(Rnew, diag = TRUE)] <- ""
+      Rnew <- as.data.frame(Rnew)
+    }
+    ## remove lower triangle of correlation matrix
+    else if(removeTriangle[1]=="lower"){
+      Rnew <- as.matrix(Rnew)
+      Rnew[lower.tri(Rnew, diag = TRUE)] <- ""
+      Rnew <- as.data.frame(Rnew)
+    }
+    ## remove last column and return the correlation matrix
+    Rnew <- cbind(Rnew[1:length(Rnew)-1])
+    if (result[1]=="none") return(Rnew)
+    else{
+      if(result[1]=="html") print(xtable(Rnew), type="html")
+      else print(xtable(Rnew), type="latex")  }} 
+
+corstars(numericdata, result = "none")
+                                                                   
+
+```
+
+
+
+
+
+Model Building: all variables: total compensation
+Model 1
+
+```{r aggregating tag }
+SalaryOLS1 <- lm(totalyearlycompensation ~ title + yearsofexperience + yearsatcompany + gender + Race + Education + region + tag , data = SalaryData6)
+summary(SalaryOLS1)
+
+plot(SalaryOLS1)
+
+totalyearlycompensation.stdres1 <-residuals(SalaryOLS1)
+library(ggplot2)
+ggplot(data=SalaryData6, aes(x=yearsofexperience, y=totalyearlycompensation.stdres1))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+ggplot(data=SalaryData6, aes(x=yearsatcompany, y=totalyearlycompensation.stdres1))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+ggplot(data=SalaryData6, aes(x=gender, y=totalyearlycompensation.stdres1))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+ggplot(data=SalaryData6, aes(x=Race, y=totalyearlycompensation.stdres1))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+ggplot(data=SalaryData6, aes(x=Education, y=totalyearlycompensation.stdres1))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+q<-ggplot(data=SalaryData6, aes(x=region, y=totalyearlycompensation.stdres1))+geom_point()
+q + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+P<-ggplot(data=SalaryData6, aes(x=title, y=totalyearlycompensation.stdres1))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "red", size=1)
+P + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+r<-ggplot(data=SalaryData6, aes(x=tag, y=totalyearlycompensation.stdres1))+geom_point()
+r + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+
+```{r collearity 1}
+vif(SalaryOLS1)
+```
+
+Model Building: all variables: total compensation
+Model2
+
+```{r ols}
+
+SalaryOLS2 <- lm(totalyearlycompensation ~ company+title + yearsofexperience + yearsatcompany + gender + Race + Education + region  , data = SalaryData6)
+summary(SalaryOLS2)
+
+plot(SalaryOLS2)
+
+totalyearlycompensation.stdres2 <-residuals(SalaryOLS2)
+
+ggplot(data=SalaryData6, aes(x=yearsofexperience, y=totalyearlycompensation.stdres2))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+ggplot(data=SalaryData6, aes(x=yearsatcompany, y=totalyearlycompensation.stdres2))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+ggplot(data=SalaryData6, aes(x=gender, y=totalyearlycompensation.stdres2))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+ggplot(data=SalaryData6, aes(x=Race, y=totalyearlycompensation.stdres2))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+ggplot(data=SalaryData6, aes(x=Education, y=totalyearlycompensation.stdres2))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+q<-ggplot(data=SalaryData6, aes(x=region, y=totalyearlycompensation.stdres2))+geom_point()
+q + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+P<-ggplot(data=SalaryData6, aes(x=title, y=totalyearlycompensation.stdres2))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "red", size=1)
+P + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+v<-ggplot(data=SalaryData6, aes(x=company, y=totalyearlycompensation.stdres2))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "red", size=1)
+v + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+```
+
+
+```{r collearity 1}
+vif(SalaryOLS2)
+```
+
+Model Building: all variables: log(total compensation)
+Model 3
+
+```{r aggregating tag 2}
+SalaryOLS3 <- lm(logTotalSalary ~ company+title + yearsofexperience + yearsatcompany + gender + Race + Education + region , data = SalaryData6)
+summary(SalaryOLS3)
+
+plot(SalaryOLS3)
+
+logTotalSalary.stdres3 <-residuals(SalaryOLS3)
+
+ggplot(data=SalaryData6, aes(x=yearsofexperience, y=logTotalSalary.stdres3))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+ggplot(data=SalaryData6, aes(x=yearsatcompany, y=logTotalSalary.stdres3))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+r<-ggplot(data=SalaryData6, aes(x=company, y=logTotalSalary.stdres3))+geom_point()
+r + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+ggplot(data=SalaryData6, aes(x=gender, y=logTotalSalary.stdres3))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+ggplot(data=SalaryData6, aes(x=Race, y=logTotalSalary.stdres3))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+ggplot(data=SalaryData6, aes(x=Education, y=logTotalSalary.stdres3))+geom_point()+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+q<-ggplot(data=SalaryData6, aes(x=region, y=logTotalSalary.stdres3))+geom_point()
+q + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+
+p<-ggplot(data=SalaryData6, aes(x=title, y=logTotalSalary.stdres3))+geom_point()
+p + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ geom_hline(yintercept=0, linetype="dashed", 
+                color = "blue", size=1)
+
+
+
+```
+Check for collinearity
+
+
+```{r collearity 2}
+vif(SalaryOLS3)
+```
+
+
+
+prediction with the most parsimonious model - model 3 - log model
+```{r predictions2}
+logsalary.predict=predict(lm(logTotalSalary ~ company+title + yearsofexperience + yearsatcompany + gender + Race + Education + region , data = SalaryData6))
+
+```
+
+plotting predicted values with the log model
+```{r predictedvsActual2}
+
+ggplot(SalaryData6, aes(x = company, y = logTotalSalary))+ geom_point(size=2, alpha = 0.5)+ # Points of actual values
+  geom_point(aes(y = logsalary.predict), size = 2, alpha = 0.5, color = 'blue',  shape = 2) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # Points of predicted values
+
+ggplot(SalaryData6, aes(x = title, y = logTotalSalary))+ geom_point(size=2, alpha = 0.5)+ # Points of actual values
+  geom_point(aes(y = logsalary.predict), size = 2, alpha = 0.5, color = 'blue',  shape = 2) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # Points of predicted values
+
+ggplot(SalaryData6, aes(x = yearsofexperience, y = logTotalSalary))+ geom_point(size=2, alpha = 0.5)+ # Points of actual values
+geom_point(aes(y = logsalary.predict), size = 2, alpha = 0.5, color = 'blue',  shape = 2)  # Points of predicted values
+
+ggplot(SalaryData6, aes(x = yearsatcompany, y = logTotalSalary))+ geom_point(size=2, alpha = 0.5)+ # Points of actual values
+  geom_point(aes(y = logsalary.predict), size = 2, alpha = 0.5, color = 'blue',  shape = 2)  # Points of predicted values
+
+ggplot(SalaryData6, aes(x = gender, y = logTotalSalary))+ geom_point(size=2, alpha = 0.5)+ # Points of actual values
+  geom_point(aes(y = logsalary.predict), size = 2, alpha = 0.5, color = 'blue',  shape = 2)  # Points of predicted values
+
+ggplot(SalaryData6, aes(x = Race, y = logTotalSalary))+ geom_point(size=2, alpha = 0.5)+ # Points of actual values
+  geom_point(aes(y = logsalary.predict), size = 2, alpha = 0.5, color = 'blue',  shape = 2) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # Points of predicted values
+
+ggplot(SalaryData6, aes(x = Education, y = logTotalSalary))+ geom_point(size=2, alpha = 0.5)+ # Points of actual values
+  geom_point(aes(y = logsalary.predict), size = 2, alpha = 0.5, color = 'blue',  shape = 2) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # Points of predicted values
+
+ggplot(SalaryData6, aes(x = region, y = logTotalSalary))+ geom_point(size=2, alpha = 0.5)+ # Points of actual values
+  geom_point(aes(y = logsalary.predict), size = 2, alpha = 0.5, color = 'blue',  shape = 2) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) # Points of predicted values
+
+
+```
+
+
+
+```{r aggregating tag }
+#install.packages("randomForest") 
+library(randomForest)
+SalaryrF1 <- randomForest(formula = totalyearlycompensation ~ title + yearsofexperience + yearsatcompany + gender + Race + Education + region + tag, data = SalaryData6, mtry = 3,      importance = TRUE, proximity = TRUE)
+
+print(SalaryrF1)
+varImpPlot(SalaryrF1)
+
+plot(SalaryData6$totalyearlycompensation, SalaryData6$totalyearlycompensation - SalaryrF1$predicted, col=c("red","blue"))
+
+
+
+
+```
+
+```{r excluding tag from model }
+SalaryrF2 <- randomForest(formula = totalyearlycompensation ~ company + title + yearsofexperience + yearsatcompany + gender + Race + Education + region, data = SalaryData6, mtry = 3,      importance = TRUE, na.action = na.omit)
+
+print(SalaryrF2)
+varImpPlot(SalaryrF2)
+
+plot(SalaryData6$totalyearlycompensation, SalaryData6$totalyearlycompensation - SalaryrF2$predicted, col=c("red","blue"))
+
+```
+
+
+```{r randomforest with logTotalSalary model run }
+SalaryrF3 <- randomForest(formula = logTotalSalary ~ company + title + yearsofexperience + yearsatcompany + gender + Race + Education + region, data = SalaryData6, mtry = 3, importance = TRUE, na.action = na.omit)
+
+print(SalaryrF3)
+varImpPlot(SalaryrF3)
+plot(SalaryData6$logTotalSalary, SalaryrF3$predicted, col=c("red","blue"))
+
+```
+
+
