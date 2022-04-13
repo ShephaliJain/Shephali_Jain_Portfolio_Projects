@@ -16,5 +16,7 @@ Explore the dashboard here- [Churn_Analysis_Project](https://public.tableau.com/
 
 ![Tableau_Churn_Analysis](https://user-images.githubusercontent.com/76183189/163248959-8428793c-9d23-4dd2-80f2-21b9eda609f3.PNG)
 
+![Case_Study_DataCamp_Tableau](https://user-images.githubusercontent.com/76183189/163258431-24ec838f-a03d-46c8-acf7-11a128784e5f.PNG)
+
 **Find other small practice projects here**
 [TableauPublic](https://public.tableau.com/app/profile/shephali.jain#!/?newProfile=&activeTab=0)
