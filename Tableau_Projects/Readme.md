@@ -2,6 +2,30 @@
 
 Explore the Dashboard here: [US Accident Analysis](https://public.tableau.com/views/USAccidentsAnalysis2020/Storyboard?:language=en-US&:display_count=n&:origin=viz_share_link)
 
+**Purpose of the project:** Reducing traffic accidents is an essential public safety challenge all over the world; therefore, accident analysis has been a subject of much research in recent decades. The objective of the project is to perform exploratory and diagnostic analysis of the changes in year 2020 to analyze the conterminous  US accident data from 49 states (based on a data set obtained from Kaggle, US Accidents), and to inform the US government agencies possible causes of traffic accidents since Covid-19 hit, specifically for year 2020 and what could be done to reduce them. 
+
+During this time, the pandemic due to the coronavirus (SARS –CoV-2) was a threat to the health and welfare of all people residing in US. Government issued several executive orders that would help to slow the spread of the virus, and its associated health impacts now commonly known as COVID-19. The analysis include number of accidents by year, number of accidents by state, best time to travel by month, day and hour, accident-prone area in each state, factors responsible of the accidents like weather, wind flow, temperature, location, etc.
+
+**Business Challenge Questions**- As Covid-19 affected the public transports over the years 2019-2020, majority of population is bound to arrange the travel medium on their own resulting into increase in purchase of vehicles, causing more possibilities for accidents to occur. In order to minimize the economic cost associated with crashes and to reduce life loss, a deep analysis of mentioned factors and parameters are important as Government consideration.
+
+Government agencies and the general public can leverage these insights from the analysis and take a preventive measure which can reduce US accidents based on the following questions answered:
+
+**1.	What are the top accident-prone areas in the US (State and city)?**
+
+**2.	What is happening in the highest accident-prone states and cities, what are the causes?**
+
+**3.	What day and time are safe to travel?**
+
+**4.	What are the factors responsible for accidents?**
+
+**5.	What is the severity of these accidents?**
+
+**6.	What solution can be implemented to reduce accidents?**
+
+**7.	How can these accidents be minimized to reduce economic cost of motor vehicle crashes?**
+
+
+
 ![US_1](https://user-images.githubusercontent.com/76183189/163251619-631a731b-7738-4237-b9f1-546f91c9c52b.PNG)
 ![US_2](https://user-images.githubusercontent.com/76183189/163251857-7afc630b-e1a9-4142-b14f-142e400df727.PNG)
 ![US_3](https://user-images.githubusercontent.com/76183189/163251896-45f0fefc-0042-4777-a63a-6e478d791c7a.PNG)
