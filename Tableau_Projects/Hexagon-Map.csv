@@ -1,0 +1,52 @@
+Code,State,Column,Row
+AK,Alaska,0.5,9
+ME,Maine,11.5,9
+NH,New Hampshire,11,8
+VT,Vermont,10,8
+MA,Massachusetts,10.5,7
+MI,Michigan,7.5,7
+MN,Minnesota,4.5,7
+MT,Montana,2.5,7
+ND,North Dakota,3.5,7
+NY,New York,9.5,7
+RI,Rhode Island,11.5,7
+WA,Washington,1.5,7
+WI,Wisconsin,5.5,7
+CT,Connecticut,11,6
+IA,Iowa,5,6
+ID,Idaho,2,6
+IL,Illinois,6,6
+IN,Indiana,7,6
+NJ,New Jersey,10,6
+OH,Ohio,8,6
+PA,Pennsylvania,9,6
+SD,South Dakota,4,6
+WY,Wyoming,3,6
+CO,Colorado,3.5,5
+DE,Delaware,9.5,5
+KY,Kentucky,6.5,5
+MD,Maryland,8.5,5
+MO,Missouri,5.5,5
+NE,Nebraska,4.5,5
+NV,Nevada,2.5,5
+OR,Oregon,1.5,5
+WV,West Virginia,7.5,5
+AR,Arkansas,6,4
+AZ,Arizona,3,4
+CA,California,2,4
+DC,District of Columbia,12,4
+KS,Kansas,5,4
+NC,North Carolina,9,4
+TN,Tennessee,7,4
+UT,Utah,4,4
+VA,Virginia,8,4
+AL,Alabama,7.5,3
+LA,Louisiana,5.5,3
+MS,Mississippi,6.5,3
+NM,New Mexico,3.5,3
+OK,Oklahoma,4.5,3
+SC,South Carolina,8.5,3
+GA,Georgia,8,2
+TX,Texas,4,2
+FL,Florida,8.5,1
+HI,Hawaii,0.5,1
