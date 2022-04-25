@@ -1,3 +1,5 @@
+## **R and Statistics Foundations**
+
 ![image](https://user-images.githubusercontent.com/76183189/165142311-9a07d23d-5984-4c24-9d09-e0a22bd026ff.png)
 
 ![image](https://user-images.githubusercontent.com/76183189/165142649-523089b8-f512-4f17-b760-952ae9222678.png)
