@@ -4,4 +4,8 @@ This repository contains my portfolio projects using MS Excel, MS SQL Server, R,
 
 ![image](https://user-images.githubusercontent.com/76183189/165192572-b8a133b0-a7a8-4b19-8447-b46a54b2258e.png)
 
+### **Disclaimer:**
+
+**All content within this repository of projects is strictly the property of Shephali Jain and is not for public use without permission.**
+
 
